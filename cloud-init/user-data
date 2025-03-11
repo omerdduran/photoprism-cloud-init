@@ -125,9 +125,15 @@ users:
   - name: pi
     gecos: PhotoPrism User
     sudo: ALL=(ALL) NOPASSWD:ALL
+    groups: adm,dialout,cdrom,floppy,sudo,audio,dip,video,plugdev,netdev
     shell: /bin/bash
     lock_passwd: false
-    passwd: 'raspberry'
+
+# Set passwords
+chpasswd:
+  expire: false
+  list: |
+    pi:raspberry
 
 # Write message to indicate completion
 final_message: "PhotoPrism has been installed and should be available at http://photoprism.local:2342 or http://<IP>:2342" 
