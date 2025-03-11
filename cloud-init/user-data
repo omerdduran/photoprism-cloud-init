@@ -1,0 +1,133 @@
+#cloud-config
+
+# Set hostname
+hostname: photoprism-pi
+fqdn: photoprism-pi.local
+
+# Update and upgrade packages
+package_update: true
+package_upgrade: true
+
+# Install required packages
+packages:
+  - apt-transport-https
+  - ca-certificates
+  - curl
+  - gnupg
+  - lsb-release
+  - git
+  - openssl
+
+# Install Docker Engine (latest version)
+runcmd:
+  # Uninstall old versions if they exist
+  - for pkg in docker.io docker-doc docker-compose docker-compose-v2 podman-docker containerd runc; do apt-get remove -y $pkg || true; done
+
+  # Add Docker's official GPG key
+  - apt-get update
+  - apt-get install -y ca-certificates curl
+  - install -m 0755 -d /etc/apt/keyrings
+  - curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+  - chmod a+r /etc/apt/keyrings/docker.asc
+
+  # Add Docker repository
+  - echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "${UBUNTU_CODENAME:-$VERSION_CODENAME}") stable" | tee /etc/apt/sources.list.d/docker.list > /dev/null
+  - apt-get update
+
+  # Install Docker Engine
+  - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+  # Create directories for PhotoPrism and Traefik
+  - mkdir -p /opt/photoprism/{photos,storage,database,traefik/certs,traefik/conf.d}
+  
+  # Generate SSL certificates
+  - /etc/traefik/generate-certs.sh
+  
+  # Copy configuration files from boot partition
+  - cp -r /boot/docker/* /opt/photoprism/
+  - cp -r /boot/traefik/* /opt/photoprism/traefik/
+  
+  # Create mount points for external drives
+  - mkdir -p /mnt/{a,b,c,d}
+  - chown -R 1000:1000 /mnt
+  
+  # Configure external drives in fstab
+  - |
+    cat >> /etc/fstab << 'EOF'
+    /dev/sda1  /mnt/a  auto  nofail,noatime,noauto,x-systemd.automount,x-systemd.device-timeout=1ms,uid=1000,gid=1000  0  0
+    /dev/sdb1  /mnt/b  auto  nofail,noatime,noauto,x-systemd.automount,x-systemd.device-timeout=1ms,uid=1000,gid=1000  0  0
+    /dev/sdc1  /mnt/c  auto  nofail,noatime,noauto,x-systemd.automount,x-systemd.device-timeout=1ms,uid=1000,gid=1000  0  0
+    /dev/sdd1  /mnt/d  auto  nofail,noatime,noauto,x-systemd.automount,x-systemd.device-timeout=1ms,uid=1000,gid=1000  0  0
+    EOF
+  
+  # Set up swap
+  - |
+    cat > /usr/local/bin/swapon.sh << 'EOF'
+    #!/usr/bin/env bash
+    
+    # add 4 GB of swap if no swap was configured yet
+    if [[ -z $(swapon --show) ]]; then
+      fallocate -l 4G /swapfile
+      chmod 600 /swapfile
+      mkswap /swapfile
+      swapon /swapfile
+      swapon --show
+      free -h
+      echo '/swapfile none swap sw 0 0' | tee -a /etc/fstab
+    fi
+    EOF
+  - chmod +x /usr/local/bin/swapon.sh
+  - /usr/local/bin/swapon.sh
+  
+  # Copy the docker-compose file from boot partition
+  - cp /boot/docker/compose.yaml /opt/photoprism/
+  
+  # Verify the installation is successful
+  - docker run --rm hello-world
+  
+  # Start PhotoPrism using the copied docker-compose file
+  - cd /opt/photoprism && docker compose up -d
+  
+  # Enable services
+  - systemctl enable docker
+  - systemctl enable avahi-daemon
+  
+  # Add a service to start PhotoPrism on boot
+  - |
+    cat > /etc/systemd/system/photoprism.service << 'EOF'
+    [Unit]
+    Description=PhotoPrism Service
+    After=docker.service network-online.target
+    Requires=docker.service network-online.target
+    
+    [Service]
+    Type=oneshot
+    RemainAfterExit=yes
+    WorkingDirectory=/opt/photoprism
+    ExecStartPre=/etc/traefik/generate-certs.sh
+    ExecStart=/usr/bin/docker compose up -d
+    ExecStop=/usr/bin/docker compose down
+    
+    [Install]
+    WantedBy=multi-user.target
+    EOF
+  
+  # Enable PhotoPrism service
+  - systemctl enable photoprism.service
+  - systemctl start photoprism.service
+  
+  # Install and configure Avahi for .local domain
+  - apt-get install -y avahi-daemon
+  - systemctl start avahi-daemon
+
+# Configure users
+users:
+  - name: pi
+    gecos: PhotoPrism User
+    sudo: ALL=(ALL) NOPASSWD:ALL
+    shell: /bin/bash
+    lock_passwd: false
+    passwd: 'raspberry'
+
+# Write message to indicate completion
+final_message: "PhotoPrism has been installed and should be available at http://photoprism.local:2342 or http://<IP>:2342" 
