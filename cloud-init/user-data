@@ -38,14 +38,24 @@ runcmd:
   - apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
 
   # Create directories for PhotoPrism and Traefik
-  - mkdir -p /opt/photoprism/{photos,storage,database,traefik/certs,traefik/conf.d}
-  
-  # Generate SSL certificates
-  - /etc/traefik/generate-certs.sh
-  
-  # Copy configuration files from boot partition
-  - cp -r /boot/docker/* /opt/photoprism/
-  - cp -r /boot/traefik/* /opt/photoprism/traefik/
+  - mkdir -p /opt/photoprism/photos
+  - mkdir -p /opt/photoprism/storage
+  - mkdir -p /opt/photoprism/database
+  - mkdir -p /opt/photoprism/import
+  - mkdir -p /opt/photoprism/originals
+  - mkdir -p /opt/photoprism/traefik/certs
+  - mkdir -p /opt/photoprism/traefik/conf.d
+  - mkdir -p /etc/traefik
+  - touch /opt/photoprism/traefik/acme.json
+  - chmod 600 /opt/photoprism/traefik/acme.json
+  - chown -R 1000:1000 /opt/photoprism
+  - chmod -R 755 /opt/photoprism
+  - chmod -R a+rwX /opt/photoprism/storage
+  - chmod -R a+rwX /opt/photoprism/database
+  - chmod -R a+rwX /opt/photoprism/import
+  - chmod -R a+rwX /opt/photoprism/originals
+  - chmod -R a+rwX /opt/photoprism/photos
+
   
   # Create mount points for external drives
   - mkdir -p /mnt/{a,b,c,d}
@@ -79,14 +89,8 @@ runcmd:
   - chmod +x /usr/local/bin/swapon.sh
   - /usr/local/bin/swapon.sh
   
-  # Copy the docker-compose file from boot partition
-  - cp /boot/docker/compose.yaml /opt/photoprism/
-  
   # Verify the installation is successful
   - docker run --rm hello-world
-  
-  # Start PhotoPrism using the copied docker-compose file
-  - cd /opt/photoprism && docker compose up -d
   
   # Enable services
   - systemctl enable docker
@@ -104,7 +108,6 @@ runcmd:
     Type=oneshot
     RemainAfterExit=yes
     WorkingDirectory=/opt/photoprism
-    ExecStartPre=/etc/traefik/generate-certs.sh
     ExecStart=/usr/bin/docker compose up -d
     ExecStop=/usr/bin/docker compose down
     
@@ -119,6 +122,122 @@ runcmd:
   # Install and configure Avahi for .local domain
   - apt-get install -y avahi-daemon
   - systemctl start avahi-daemon
+
+# Write configuration files
+write_files:
+  - path: /opt/photoprism/compose.yaml
+    permissions: '0644'
+    content: |
+      name: photoprism
+
+      services:
+        photoprism:
+          image: photoprism/photoprism:arm64
+          depends_on:
+            - mariadb
+          restart: always
+          security_opt:
+            - seccomp:unconfined
+            - apparmor:unconfined
+          user: "1000:1000"
+          ports:
+            - "2342:2342"
+          labels:
+            - "traefik.enable=true"
+            - "traefik.http.routers.photoprism.rule=Host(`photoprismpi.local`)"
+            - "traefik.http.routers.photoprism.entrypoints=websecure"
+            - "traefik.http.routers.photoprism.tls=true"
+            - "traefik.http.services.photoprism.loadbalancer.server.port=2342"
+          environment:
+            PHOTOPRISM_ADMIN_PASSWORD: "photoprismpi"
+            PHOTOPRISM_AUTH_MODE: "passwd"
+            PHOTOPRISM_SITE_URL: "https://photoprismpi.local/"
+            PHOTOPRISM_SITE_CAPTION: "AI-Powered Photos App"
+            PHOTOPRISM_ORIGINALS_LIMIT: 5000
+            PHOTOPRISM_HTTP_COMPRESSION: "none"
+            PHOTOPRISM_WORKERS: 2
+            PHOTOPRISM_LOG_LEVEL: "info"
+            PHOTOPRISM_READONLY: "false"
+            PHOTOPRISM_EXPERIMENTAL: "false"
+            PHOTOPRISM_DISABLE_CHOWN: "false"
+            PHOTOPRISM_DISABLE_WEBDAV: "false"
+            PHOTOPRISM_DISABLE_SETTINGS: "false"
+            PHOTOPRISM_DISABLE_TENSORFLOW: "false"
+            PHOTOPRISM_DISABLE_FACES: "false"
+            PHOTOPRISM_DISABLE_CLASSIFICATION: "false"
+            PHOTOPRISM_DISABLE_RAW: "false"
+            PHOTOPRISM_RAW_PRESETS: "false"
+            PHOTOPRISM_JPEG_QUALITY: 85
+            PHOTOPRISM_DETECT_NSFW: "false"
+            PHOTOPRISM_UPLOAD_NSFW: "true"
+            PHOTOPRISM_DATABASE_DRIVER: "mysql"
+            PHOTOPRISM_DATABASE_SERVER: "mariadb:3306"
+            PHOTOPRISM_DATABASE_NAME: "photoprism"
+            PHOTOPRISM_DATABASE_USER: "photoprism"
+            PHOTOPRISM_DATABASE_PASSWORD: "insecure"
+            PHOTOPRISM_INIT: "gpu"
+            PHOTOPRISM_FFMPEG_ENCODER: "software"
+            PHOTOPRISM_FFMPEG_BITRATE: "32"
+            PHOTOPRISM_UID: 1000
+            PHOTOPRISM_GID: 1000
+          working_dir: "/photoprism"
+          volumes:
+            - "/opt/photoprism/storage:/photoprism/storage"
+            - "/opt/photoprism/originals:/photoprism/originals"
+            - "/mnt:/photoprism/originals/mnt:slave"
+            - "/opt/photoprism/import:/photoprism/import"
+
+        mariadb:
+          restart: always
+          image: arm64v8/mariadb:10.10
+          security_opt:
+            - seccomp:unconfined
+            - apparmor:unconfined
+          command: mysqld --innodb-buffer-pool-size=256M --transaction-isolation=READ-COMMITTED --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci --max-connections=512 --innodb-rollback-on-timeout=OFF --innodb-lock-wait-timeout=120
+          volumes:
+            - "/opt/photoprism/database:/var/lib/mysql"
+          environment:
+            MARIADB_AUTO_UPGRADE: "1"
+            MARIADB_INITDB_SKIP_TZINFO: "1"
+            MARIADB_DATABASE: "photoprism"
+            MARIADB_USER: "photoprism"
+            MARIADB_PASSWORD: "insecure"
+            MARIADB_ROOT_PASSWORD: "insecure"
+
+        traefik:
+          restart: always
+          image: traefik:v2.10
+          ports:
+            - "80:80"
+            - "443:443"
+          volumes:
+            - "/var/run/docker.sock:/var/run/docker.sock:ro"
+            - "/opt/photoprism/traefik:/etc/traefik:rw"
+          command:
+            - "--api.insecure=false"
+            - "--providers.docker=true"
+            - "--providers.docker.exposedbydefault=false"
+            - "--entrypoints.web.address=:80"
+            - "--entrypoints.websecure.address=:443"
+            - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
+            - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
+            - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
+            - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
+            - "--certificatesresolvers.myresolver.acme.storage=/etc/traefik/acme.json"
+
+        watchtower:
+          restart: always
+          image: containrrr/watchtower
+          environment:
+            WATCHTOWER_CLEANUP: "true"
+            WATCHTOWER_POLL_INTERVAL: 7200
+          volumes:
+            - "/var/run/docker.sock:/var/run/docker.sock"
+
+      networks:
+        default:
+          name: photoprism
+          driver: bridge
 
 # Configure users
 users:
