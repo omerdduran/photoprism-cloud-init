@@ -144,14 +144,15 @@ write_files:
             - "2342:2342"
           labels:
             - "traefik.enable=true"
-            - "traefik.http.routers.photoprism.rule=Host(`photoprismpi.local`)"
+            - "traefik.http.routers.photoprism.rule=Host(`photoprism-pi.local`)"
             - "traefik.http.routers.photoprism.entrypoints=websecure"
             - "traefik.http.routers.photoprism.tls=true"
             - "traefik.http.services.photoprism.loadbalancer.server.port=2342"
+            - "traefik.docker.network=photoprism"
           environment:
             PHOTOPRISM_ADMIN_PASSWORD: "photoprismpi"
             PHOTOPRISM_AUTH_MODE: "passwd"
-            PHOTOPRISM_SITE_URL: "https://photoprismpi.local/"
+            PHOTOPRISM_SITE_URL: "https://photoprism-pi.local/"
             PHOTOPRISM_SITE_CAPTION: "AI-Powered Photos App"
             PHOTOPRISM_ORIGINALS_LIMIT: 5000
             PHOTOPRISM_HTTP_COMPRESSION: "none"
@@ -224,6 +225,9 @@ write_files:
             - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
             - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
             - "--certificatesresolvers.myresolver.acme.storage=/etc/traefik/acme.json"
+            - "--providers.docker.network=photoprism"
+            - "--providers.docker.defaultRule=Host(`{{ normalize .Name }}.local`)"
+            - "--log.level=DEBUG"
 
         watchtower:
           restart: always
@@ -255,4 +259,4 @@ chpasswd:
     pi:raspberry
 
 # Write message to indicate completion
-final_message: "PhotoPrism has been installed and should be available at http://photoprism.local:2342 or http://<IP>:2342" 
+final_message: "PhotoPrism has been installed and should be available at https://photoprism-pi.local/" 
