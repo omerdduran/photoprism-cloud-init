@@ -114,6 +114,12 @@ runcmd:
   - docker run --rm hello-world
   - printf "\e[0;35m[SETUP] ✓ Docker installation verified\e[0m\n"
   
+  # Ensure docker group exists and pi user is added to it
+  - printf "\e[0;35m[SETUP] Ensuring pi user is in docker group...\e[0m\n"
+  - getent group docker || groupadd docker
+  - usermod -aG docker pi
+  - printf "\e[0;35m[SETUP] ✓ Pi user added to docker group\e[0m\n"
+  
   # Enable services
   - printf "\e[0;35m[SETUP] Enabling required services...\e[0m\n"
   - systemctl enable docker
@@ -156,6 +162,22 @@ runcmd:
   
 # Write configuration files
 write_files:
+      
+  - path: /etc/motd
+    permissions: '0644'
+    content: |
+      #######################################################
+      #                                                     #
+      #  PhotoPrism is running on this Raspberry Pi         #
+      #                                                     #
+      #  Web Interface: https://photoprism-pi.local         #
+      #  Local Port: 2342                                   #
+      #                                                     #
+      #  For help and more information, visit:              #
+      #  https://docs.photoprism.app                        #
+      #                                                     #
+      #######################################################
+      
   - path: /opt/photoprism/compose.yaml
     permissions: '0644'
     content: |
@@ -289,7 +311,7 @@ users:
   - name: pi
     gecos: PhotoPrism User
     sudo: ALL=(ALL) NOPASSWD:ALL
-    groups: adm,dialout,cdrom,floppy,sudo,audio,dip,video,plugdev,netdev
+    groups: adm,dialout,cdrom,floppy,sudo,audio,dip,video,plugdev,netdev,docker
     shell: /bin/bash
     lock_passwd: false
 
