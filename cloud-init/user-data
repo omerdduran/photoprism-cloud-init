@@ -165,18 +165,29 @@ write_files:
       
   - path: /etc/motd
     permissions: '0644'
+    template: jinja
+    defer: true
     content: |
-      #######################################################
-      #                                                     #
-      #  PhotoPrism is running on this Raspberry Pi         #
-      #                                                     #
-      #  Web Interface: https://photoprism-pi.local         #
-      #  Local Port: 2342                                   #
-      #                                                     #
-      #  For help and more information, visit:              #
-      #  https://docs.photoprism.app                        #
-      #                                                     #
-      #######################################################
+      #################################################################
+      #                                                               #
+      #  Welcome to PhotoPrism Pi!                                    #
+      #                                                               #
+      #  You can access the web interface using one of the            #
+      #  following URLs:                                              #
+      #  http://<your IP address>:2342/                               #
+      #  (Find by typing 'hostname -I' in the terminal)               #
+      #  https://photoprism-pi.local/                                 #
+      #                                                               #
+      #  Your initial password for the "admin" account is             #
+      #  "photoprismpi". Please change it after logging in for the    #
+      #  first time, especially if your device is connected to the    #
+      #  Internet or a shared network.                                #
+      #                                                               #
+      #  For further information and help with troubleshooting:       #
+      #  https://docs.photoprism.app/photoprism-pi/                   #
+      #  https://docs.photoprism.app/getting-started/troubleshooting/ #
+      #                                                               #
+      #################################################################
       
   - path: /opt/photoprism/compose.yaml
     permissions: '0644'
@@ -200,7 +211,6 @@ write_files:
             - "traefik.http.routers.photoprism.rule=Host(`photoprism-pi.local`)"
             - "traefik.http.routers.photoprism.entrypoints=websecure"
             - "traefik.http.routers.photoprism.tls=true"
-            - "traefik.http.routers.photoprism.tls.certresolver=myresolver"
             - "traefik.http.services.photoprism.loadbalancer.server.port=2342"
             - "traefik.docker.network=photoprism"
           environment:
@@ -270,12 +280,6 @@ write_files:
             - "/opt/photoprism/traefik:/etc/traefik:rw"
           labels:
             - "traefik.enable=true"
-            - "traefik.http.middlewares.acme-middleware.redirectregex.regex=^(/.well-known/acme-challenge/.*)$$"
-            - "traefik.http.middlewares.acme-middleware.redirectregex.permanent=true"
-            - "traefik.http.routers.acme.rule=PathPrefix(`/.well-known/acme-challenge/`)"
-            - "traefik.http.routers.acme.entrypoints=web"
-            - "traefik.http.routers.acme.middlewares=acme-middleware"
-            - "traefik.http.routers.acme.priority=100"
           command:
             - "--api.insecure=false"
             - "--providers.docker=true"
@@ -284,10 +288,6 @@ write_files:
             - "--entrypoints.websecure.address=:443"
             - "--entrypoints.web.http.redirections.entrypoint.to=websecure"
             - "--entrypoints.web.http.redirections.entrypoint.scheme=https"
-            - "--certificatesresolvers.myresolver.acme.httpchallenge=true"
-            - "--certificatesresolvers.myresolver.acme.httpchallenge.entrypoint=web"
-            - "--certificatesresolvers.myresolver.acme.storage=/etc/traefik/acme.json"
-            - "--certificatesresolvers.myresolver.acme.email=admin@photoprism-pi.local"
             - "--providers.docker.network=photoprism"
             - "--providers.docker.defaultRule=Host(`{{ normalize .Name }}.local`)"
             - "--log.level=DEBUG"
@@ -323,16 +323,17 @@ chpasswd:
     
 # Write message to indicate completion
 final_message: |
-  #######################################################
-  #                                                     #
-  #  PhotoPrism has been successfully installed!        #
-  #                                                     #
-  #  Access your new PhotoPrism installation at:        #
-  #  https://photoprism-pi.local                        #
-  #                                                     #
-  #  Username: admin                                    #
-  #  Password: photoprismpi                             #
-  #                                                     #
-  #  Thank you for using PhotoPrism!                    #
-  #                                                     #
-  #######################################################
+  #################################################################
+  #                                                               #
+  #  Welcome to PhotoPrism Pi!                                    #
+  #                                                               #
+  #  You can access the web interface using the following URLs:   #
+  #  http://<your IP address>:2342/                               #
+  #  (Find by typing 'hostname -I' in the terminal)               #
+  #  https://photoprism-pi.local/                                 #
+  #                                                               #
+  #  For further information and help with troubleshooting:       #
+  #  https://docs.photoprism.app/photoprism-pi/                   #
+  #  https://docs.photoprism.app/getting-started/troubleshooting/ #
+  #                                                               #
+  #################################################################
