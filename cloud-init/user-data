@@ -62,12 +62,11 @@ runcmd:
   - chmod 600 /opt/photoprism/traefik/acme.json
   - chown -R 1000:1000 /opt/photoprism
   - chmod -R 755 /opt/photoprism
-  - chmod 600 /opt/photoprism/traefik/acme.json
-  - chmod -R a+rwX /opt/photoprism/storage
-  - chmod -R a+rwX /opt/photoprism/database
-  - chmod -R a+rwX /opt/photoprism/import
-  - chmod -R a+rwX /opt/photoprism/originals
-  - chmod -R a+rwX /opt/photoprism/photos
+  - chmod -R ug+rwX,o-rwx /opt/photoprism/storage
+  - chmod -R ug+rwX,o-rwx /opt/photoprism/database
+  - chmod -R ug+rwX,o-rwx /opt/photoprism/import
+  - chmod -R ug+rwX,o-rwx /opt/photoprism/originals
+  - chmod -R ug+rwX,o-rwx /opt/photoprism/photos
   - printf "\e[0;35m[SETUP] ✓ PhotoPrism directory structure created\e[0m\n"
 
   
@@ -81,10 +80,10 @@ runcmd:
   - printf "\e[0;35m[SETUP] Configuring external drives in fstab...\e[0m\n"
   - |
     cat >> /etc/fstab << 'EOF'
-    /dev/sda1  /mnt/a  auto  nofail,noatime,noauto,x-systemd.automount,x-systemd.device-timeout=1ms,uid=1000,gid=1000  0  0
-    /dev/sdb1  /mnt/b  auto  nofail,noatime,noauto,x-systemd.automount,x-systemd.device-timeout=1ms,uid=1000,gid=1000  0  0
-    /dev/sdc1  /mnt/c  auto  nofail,noatime,noauto,x-systemd.automount,x-systemd.device-timeout=1ms,uid=1000,gid=1000  0  0
-    /dev/sdd1  /mnt/d  auto  nofail,noatime,noauto,x-systemd.automount,x-systemd.device-timeout=1ms,uid=1000,gid=1000  0  0
+    /dev/sda1  /mnt/a  auto  nofail,noatime,noauto,x-systemd.automount,x-systemd.device-timeout=10s,uid=1000,gid=1000  0  0
+    /dev/sdb1  /mnt/b  auto  nofail,noatime,noauto,x-systemd.automount,x-systemd.device-timeout=10s,uid=1000,gid=1000  0  0
+    /dev/sdc1  /mnt/c  auto  nofail,noatime,noauto,x-systemd.automount,x-systemd.device-timeout=10s,uid=1000,gid=1000  0  0
+    /dev/sdd1  /mnt/d  auto  nofail,noatime,noauto,x-systemd.automount,x-systemd.device-timeout=10s,uid=1000,gid=1000  0  0
     EOF
   - printf "\e[0;35m[SETUP] ✓ External drives configured in fstab\e[0m\n"
   
