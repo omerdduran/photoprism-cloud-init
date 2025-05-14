@@ -156,13 +156,23 @@ runcmd:
   - systemctl restart avahi-daemon
   - printf "\e[0;35m[SETUP] ✓ Avahi configured for .local domain\e[0m\n"
   
+  # Update MOTD with actual IP address
+  - printf "\e[0;35m[SETUP] Updating MOTD with actual IP address...\e[0m\n"
+  - chmod +x /usr/local/bin/update-motd-ip.sh
+  - /usr/local/bin/update-motd-ip.sh
+  - printf "\e[0;35m[SETUP] ✓ MOTD updated with actual IP\e[0m\n"
+  
 # Write configuration files
 write_files:
+  - path: /usr/local/bin/update-motd-ip.sh
+    permissions: '0755'
+    content: |
+      #!/bin/bash
+      IP=$(hostname -I | awk '{print $1}')
+      sed -i "s|http://<your IP address>:2342/|http://$IP:2342/|g" /etc/motd
       
   - path: /etc/motd
     permissions: '0644'
-    template: jinja
-    defer: true
     content: |
       #################################################################
       #                                                               #
@@ -170,8 +180,7 @@ write_files:
       #                                                               #
       #  You can access the web interface using one of the            #
       #  following URLs:                                              #
-      #  http://<your IP address>:2342/                               #
-      #  (Find by typing 'hostname -I' in the terminal)               #
+      #  http://<your IP address>:2342/                                       #
       #  https://photoprism-pi.local/                                 #
       #                                                               #
       #  Your initial password for the "admin" account is             #
