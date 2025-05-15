@@ -164,19 +164,18 @@ runcmd:
   - IP=$(ip addr show $PRIMARY_IFACE 2>/dev/null | grep -oP 'inet \K[\d.]+' || hostname -I | awk '{print $1}')
   - |
     cat > /etc/issue << EOF
-    #################################################################
-    #                                                               #
-    #  Welcome to PhotoPrism Pi!                                    #
-    #                                                               #
-    #  You can access the web interface using the following URLs:   #
-    #  http://$IP:2342/                                             #
-    #  https://photoprism-pi.local/                                 #
-    #                                                               #
-    #  For further information and help with troubleshooting:       #
-    #  https://docs.photoprism.app/photoprism-pi/                   #
-    #  https://docs.photoprism.app/getting-started/troubleshooting/ #
-    #                                                               #
-    #################################################################
+    
+                                                                   
+      Welcome to PhotoPrism Pi!                                    
+                                                                   
+      You can access the web interface using the following URLs:   
+      http://$IP:2342/                                             
+      https://photoprism-pi.local/                                 
+                                                                   
+      For further information and help with troubleshooting:       
+      https://docs.photoprism.app/photoprism-pi/                   
+      https://docs.photoprism.app/getting-started/troubleshooting/ 
+                                                                   
     EOF
   - printf "\e[0;35m[SETUP] ✓ MOTD and console login message updated with actual IP\e[0m\n"
   
@@ -194,25 +193,22 @@ write_files:
   - path: /etc/motd
     permissions: '0644'
     content: |
-      #################################################################
-      #                                                               #
-      #  Welcome to PhotoPrism Pi!                                    #
-      #                                                               #
-      #  You can access the web interface using one of the            #
-      #  following URLs:                                              #
-      #  http://<your IP address>:2342/                                       #
-      #  https://photoprism-pi.local/                                 #
-      #                                                               #
-      #  Your initial password for the "admin" account is             #
-      #  "photoprismpi". Please change it after logging in for the    #
-      #  first time, especially if your device is connected to the    #
-      #  Internet or a shared network.                                #
-      #                                                               #
-      #  For further information and help with troubleshooting:       #
-      #  https://docs.photoprism.app/photoprism-pi/                   #
-      #  https://docs.photoprism.app/getting-started/troubleshooting/ #
-      #                                                               #
-      #################################################################
+      
+      Welcome to PhotoPrism Pi!                                   
+      
+      You can access the web interface using one of the            
+      following URLs:                                             
+      http://<your IP address>:2342/                                       
+      https://photoprism-pi.local/                                 
+      
+      Your initial password for the "admin" account is             
+      "photoprismpi". Please change it after logging in for the    
+      first time, especially if your device is connected to the    
+      Internet or a shared network.                                
+      
+      For further information and help with troubleshooting:       
+      https://docs.photoprism.app/photoprism-pi/                   
+      https://docs.photoprism.app/getting-started/troubleshooting/ 
       
   - path: /opt/photoprism/compose.yaml
     permissions: '0644'
@@ -399,19 +395,11 @@ chpasswd:
   list: |
     pi:raspberry
     
-# Write message to indicate completion
-final_message: |
-  #################################################################
-  #                                                               #
-  #  Welcome to PhotoPrism Pi!                                    #
-  #                                                               #
-  #  You can access the web interface using the following URLs:   #
-  #  http://<your IP address>:2342/                               #
-  #  (Find by typing 'hostname -I' in the terminal)               #
-  #  https://photoprism-pi.local/                                 #
-  #                                                               #
-  #  For further information and help with troubleshooting:       #
-  #  https://docs.photoprism.app/photoprism-pi/                   #
-  #  https://docs.photoprism.app/getting-started/troubleshooting/ #
-  #                                                               #
-  #################################################################
+# Automatically reboot after cloud-init completes
+power_state:
+  delay: "+1"
+  mode: reboot
+  message: "Rebooting system after cloud-init completes setup"
+  timeout: 30
+  condition: True
+  
