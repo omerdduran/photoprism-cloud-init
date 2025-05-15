@@ -156,11 +156,31 @@ runcmd:
   - systemctl restart avahi-daemon
   - printf "\e[0;35m[SETUP] ✓ Avahi configured for .local domain\e[0m\n"
   
-  # Update MOTD with actual IP address
-  - printf "\e[0;35m[SETUP] Updating MOTD with actual IP address...\e[0m\n"
+  # Update MOTD and issue file with actual IP address
+  - printf "\e[0;35m[SETUP] Updating MOTD and console login message with actual IP address...\e[0m\n"
   - chmod +x /usr/local/bin/update-motd-ip.sh
   - /usr/local/bin/update-motd-ip.sh
-  - printf "\e[0;35m[SETUP] ✓ MOTD updated with actual IP\e[0m\n"
+  - PRIMARY_IFACE=$(ip route | grep default | awk '{print $5}')
+  - IP=$(ip addr show $PRIMARY_IFACE 2>/dev/null | grep -oP 'inet \K[\d.]+' || hostname -I | awk '{print $1}')
+  - |
+    cat > /etc/issue << EOF
+    #################################################################
+    #                                                               #
+    #  Welcome to PhotoPrism Pi!                                    #
+    #                                                               #
+    #  You can access the web interface using the following URLs:   #
+    #  http://$IP:2342/                                             #
+    #  https://photoprism-pi.local/                                 #
+    #                                                               #
+    #  For further information and help with troubleshooting:       #
+    #  https://docs.photoprism.app/photoprism-pi/                   #
+    #  https://docs.photoprism.app/getting-started/troubleshooting/ #
+    #                                                               #
+    #################################################################
+    EOF
+  - printf "\e[0;35m[SETUP] ✓ MOTD and console login message updated with actual IP\e[0m\n"
+  
+
   
 # Write configuration files
 write_files:
@@ -320,7 +340,7 @@ write_files:
       #browse-domains=0pointer.de, zeroconf.org
       use-ipv4=yes
       use-ipv6=no
-      #allow-interfaces=eth0
+      allow-interfaces=eth0
       #deny-interfaces=eth1
       #check-response-ttl=no
       #use-iff-running=no
